@@ -1,12 +1,13 @@
 #![no_std]
 
-use embedded_graphics::prelude::PointsIter;
 use embedded_graphics_core::{
     draw_target::DrawTarget,
     geometry::Size,
     geometry::{Dimensions, OriginDimensions},
     pixelcolor::*,
     Pixel,
+    primitives::Rectangle,
+    prelude::PointsIter,
 };
 use display_interface::DisplayError;
 
@@ -45,11 +46,12 @@ impl<T: embedded_hal::spi::FullDuplex<u8>> DrawTarget for SmartLedMatrix<T> {
                 self.content[(pos.x*8+pos.y) as usize] = RGB8::new(color.r(), color.g(), color.b());
             }
         });
+        //TODO: always returns an SPI overrun error on my stm32f401 
         self.writer.write(self.content.iter().cloned());
         Ok(())
     }
 
-    fn fill_contiguous<I>(&mut self, area: &embedded_graphics::primitives::Rectangle, colors: I) -> Result<(), Self::Error>
+    fn fill_contiguous<I>(&mut self, area: &Rectangle, colors: I) -> Result<(), Self::Error>
     where
         I: IntoIterator<Item = Self::Color>,
     {
@@ -60,7 +62,7 @@ impl<T: embedded_hal::spi::FullDuplex<u8>> DrawTarget for SmartLedMatrix<T> {
         )
     }
 
-    fn fill_solid(&mut self, area: &embedded_graphics::primitives::Rectangle, color: Self::Color) -> Result<(), Self::Error> {
+    fn fill_solid(&mut self, area: &Rectangle, color: Self::Color) -> Result<(), Self::Error> {
         self.fill_contiguous(area, core::iter::repeat(color))
     }
 
