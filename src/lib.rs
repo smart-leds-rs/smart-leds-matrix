@@ -15,26 +15,26 @@ use display_interface::DisplayError;
 use smart_leds::{SmartLedsWrite, hsv::RGB8};
 use ws2812_spi as ws2812;
 pub struct SmartLedMatrix<T> {
-    writer: ws2812::Ws2812<T>,
+    writer: T,
     content: [RGB8; 64]
 }
 
 
-impl<T: embedded_hal::spi::FullDuplex<u8>> OriginDimensions for SmartLedMatrix<T> {
+impl<T: SmartLedsWrite> OriginDimensions for SmartLedMatrix<T> {
     fn size(&self) -> Size {
         Size::new(8, 8)
     }
 }
 
 
-impl<T: embedded_hal::spi::FullDuplex<u8>> SmartLedMatrix<T> {
-    pub fn new(writer: ws2812::Ws2812<T>) -> Self {
+impl<T: SmartLedsWrite> SmartLedMatrix<T> {
+    pub fn new(writer: T) -> Self {
             Self{writer: writer,
                 content: [RGB8::default(); 64]}
     }
 }
 
-impl<T: embedded_hal::spi::FullDuplex<u8>> DrawTarget for SmartLedMatrix<T> {
+impl<T: SmartLedsWrite> DrawTarget for SmartLedMatrix<T> {
     type Color = Rgb888;
     type Error = DisplayError;
 
