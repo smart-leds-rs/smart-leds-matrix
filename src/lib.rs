@@ -47,8 +47,14 @@ where <T as SmartLedsWrite>::Color: From<RGB8> {
             }
         });
         //TODO: always returns an SPI overrun error on my stm32f401 
-        self.writer.write(self.content.iter().cloned());
-        Ok(())
+        match self.writer.write(self.content.iter().cloned()) {
+            Ok(()) => {
+                Ok(())
+            }
+            Err(_) => {
+                Err(DisplayError::BusWriteError)
+            }
+        }
     }
 
     fn fill_contiguous<I>(&mut self, area: &Rectangle, colors: I) -> Result<(), Self::Error>
