@@ -43,7 +43,7 @@ where <T as SmartLedsWrite>::Color: From<RGB8> {
     I: IntoIterator<Item = Pixel<Rgb888>> {
         pixels.into_iter().for_each(|Pixel(pos, color)| {
             if pos.x >= 0 && pos.x <= 7 && pos.y >= 0 && pos.y <= 7 {
-                self.content[(pos.x*8+pos.y) as usize] = RGB8::new(color.r(), color.g(), color.b());
+                self.content[(pos.x*8+(7-pos.y)) as usize] = RGB8::new(color.r(), color.g(), color.b());
             }
         });
         //TODO: always returns an SPI overrun error on my stm32f401 
