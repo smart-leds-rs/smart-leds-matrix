@@ -11,9 +11,8 @@ use embedded_graphics_core::{
 };
 use display_interface::DisplayError;
 
-//use smart_leds_trait::{SmartLedsWrite, RGB8};
 use smart_leds::{SmartLedsWrite, hsv::RGB8};
-use ws2812_spi as ws2812;
+
 pub struct SmartLedMatrix<T> {
     writer: T,
     content: [RGB8; 64]
@@ -34,7 +33,8 @@ impl<T: SmartLedsWrite> SmartLedMatrix<T> {
     }
 }
 
-impl<T: SmartLedsWrite> DrawTarget for SmartLedMatrix<T> {
+impl<T: SmartLedsWrite> DrawTarget for SmartLedMatrix<T> 
+where <T as SmartLedsWrite>::Color: From<RGB8> {
     type Color = Rgb888;
     type Error = DisplayError;
 
