@@ -49,11 +49,12 @@ where <T as SmartLedsWrite>::Color: From<RGB8> {
     I: IntoIterator<Item = Pixel<Rgb888>> {
         pixels.into_iter().for_each(|Pixel(pos, color)| {
             if self.matrix_type.position_valid(pos) {
-                self.content.as_slice()[self.matrix_type.map(pos.x, pos.y)] = RGB8::new(color.r(), color.g(), color.b());
+                self.content.0[pos.x as usize][pos.y as usize] = RGB8::new(color.r(), color.g(), color.b());
             }
         });
         //TODO: always returns an SPI overrun error on my stm32f401 
-        match self.writer.write(self.content.as_slice().iter().cloned()) {
+        let iter = self.content.as_slice().iter().cloned();
+        match self.writer.write(iter) {
             Ok(()) => {
                 Ok(())
             }
