@@ -1,37 +1,46 @@
 #![no_std]
-#![feature(generic_const_exprs)]
+#![feature(min_const_generics)]
 
 use embedded_graphics_core::{Pixel, draw_target::DrawTarget, geometry::Size, geometry::{Dimensions, OriginDimensions}, pixelcolor::*, prelude::{Point, PointsIter}, primitives::Rectangle};
 use display_interface::DisplayError;
 
 use smart_leds::{SmartLedsWrite, hsv::RGB8};
 
-pub struct SmartLedMatrix<T, M: MatrixType> 
-where [(); M::PIXELS]: {
+struct Content<const W: usize, const H: usize>(pub [[RGB8; W]; H]);
+
+impl <const W: usize, const H: usize> Content<W, H> {
+    /// Return a slice that aliases the same memory.
+    pub fn as_slice(&self) -> &[RGB8] {
+        // NOTE(unsafe): Creates a shared reference to the same underlying data,
+        // NOTE(unsafe): which we know is tightly packed and so a valid [u8].
+        unsafe { core::slice::from_raw_parts(self as *const _ as *const RGB8,
+                                             core::mem::size_of::<Self>()) }
+    }
+}
+
+pub struct SmartLedMatrix<T, M: MatrixType, const W: usize, const H: usize> {
     writer: T,
-    content: [RGB8; M::PIXELS],
+    content: Content<W, H>,
     matrix_type: M
 }
 
-impl<T: SmartLedsWrite, M: MatrixType> OriginDimensions for SmartLedMatrix<T, M> 
-where [(); M::PIXELS]: {
+impl<T: SmartLedsWrite, M: MatrixType, const W: usize, const H: usize> OriginDimensions for SmartLedMatrix<T, M, W, H> {
     fn size(&self) -> Size {
         self.matrix_type.size()
     }
 }
 
-impl<T: SmartLedsWrite, M: MatrixType> SmartLedMatrix<T, M> 
-where [(); M::PIXELS]: {
+impl<T: SmartLedsWrite, M: MatrixType, const W: usize, const H: usize> SmartLedMatrix<T, M, W, H> {
     pub fn new(writer: T, matrix_type: M) -> Self {
+        let content = Content::<W, H>([[RGB8::default(); W]; H]);
         Self{writer: writer,
-            content: [RGB8::default(); M::PIXELS],
+            content: content,
             matrix_type: matrix_type}
     }
 }
 
-impl<T: SmartLedsWrite, M: MatrixType> DrawTarget for SmartLedMatrix<T, M> 
-where <T as SmartLedsWrite>::Color: From<RGB8>,
-[(); M::PIXELS]: {
+impl<T: SmartLedsWrite, M: MatrixType, const w: usize, const h: usize> DrawTarget for SmartLedMatrix<T, M, w, h> 
+where <T as SmartLedsWrite>::Color: From<RGB8> {
     type Color = Rgb888;
     type Error = DisplayError;
 
@@ -40,11 +49,11 @@ where <T as SmartLedsWrite>::Color: From<RGB8>,
     I: IntoIterator<Item = Pixel<Rgb888>> {
         pixels.into_iter().for_each(|Pixel(pos, color)| {
             if self.matrix_type.position_valid(pos) {
-                self.content[self.matrix_type.map(pos.x, pos.y)] = RGB8::new(color.r(), color.g(), color.b());
+                self.content.as_slice()[self.matrix_type.map(pos.x, pos.y)] = RGB8::new(color.r(), color.g(), color.b());
             }
         });
         //TODO: always returns an SPI overrun error on my stm32f401 
-        match self.writer.write(self.content.iter().cloned()) {
+        match self.writer.write(self.content.as_slice().iter().cloned()) {
             Ok(()) => {
                 Ok(())
             }
