@@ -3,7 +3,7 @@
 use embedded_graphics_core::{Pixel, draw_target::DrawTarget, geometry::Size, geometry::{OriginDimensions}, pixelcolor::*, prelude::{Point}};
 use display_interface::DisplayError;
 
-use smart_leds::{SmartLedsWrite, hsv::RGB8};
+use smart_leds::{SmartLedsWrite, brightness, hsv::RGB8};
 
 struct Content<const W: usize, const H: usize>(pub [[RGB8; W]; H]);
 
@@ -20,7 +20,14 @@ impl <const W: usize, const H: usize> Content<W, H> {
 pub struct SmartLedMatrix<T, M: MatrixType, const W: usize, const H: usize> {
     writer: T,
     content: Content<W, H>,
-    matrix_type: M
+    matrix_type: M,
+    brightness: u8,
+}
+
+impl<T, M: MatrixType, const W: usize, const H: usize> SmartLedMatrix<T, M, W, H> {
+    pub fn set_brightness(&mut self, new_brightness: u8) {
+        self.brightness = new_brightness;
+    }
 }
 
 impl<T: SmartLedsWrite, M: MatrixType, const W: usize, const H: usize> OriginDimensions for SmartLedMatrix<T, M, W, H> {
@@ -34,7 +41,8 @@ impl<T: SmartLedsWrite, M: MatrixType, const W: usize, const H: usize> SmartLedM
         let content = Content::<W, H>([[RGB8::default(); W]; H]);
         Self{writer: writer,
             content: content,
-            matrix_type: matrix_type}
+            matrix_type: matrix_type,
+            brightness: 255}
     }
 }
 
@@ -53,7 +61,7 @@ where <T as SmartLedsWrite>::Color: From<RGB8> {
                 Err(e) => out_of_bounds_checker = Err(e),
             }
         });
-        let iter = self.content.as_slice().iter().cloned();
+        let iter = brightness(self.content.as_slice().iter().cloned(), self.brightness);
         match self.writer.write(iter) {
             Ok(()) => {
                 out_of_bounds_checker
