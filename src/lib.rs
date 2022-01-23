@@ -14,7 +14,7 @@ impl <const W: usize, const H: usize> Content<W, H> {
         // NOTE(unsafe): Creates a shared reference to the same underlying data,
         // NOTE(unsafe): which we know is tightly packed and so a valid [u8].
         unsafe { core::slice::from_raw_parts(self as *const _ as *const RGB8,
-                                             core::mem::size_of::<Self>()) }
+                                             core::mem::size_of::<Self>() / core::mem::size_of::<RGB8>()) }
     }
 }
 
