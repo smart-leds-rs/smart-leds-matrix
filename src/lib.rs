@@ -1,3 +1,10 @@
+//! # Smart Leds Matrix
+//! 
+//! This is a library that adapts [smart-leds](https://crates.io/crates/smart-leds) driver implementations to the
+//! [embedded-graphics](https://docs.rs/embedded-graphics/latest/embedded_graphics/) crate by wrapping the LED
+//! driver into a `Drawable` display target.
+//! 
+
 #![no_std]
 
 use embedded_graphics_core::{Pixel, draw_target::DrawTarget, geometry::Size, geometry::{OriginDimensions}, pixelcolor::*, prelude::{Point}};
@@ -17,6 +24,11 @@ impl <const W: usize, const H: usize> Content<W, H> {
     }
 }
 
+/// The wrapper for the LED driver.
+///
+/// This receives the `SmartLedsWriter` trait implementations along with a
+/// `MatrixType` that describes the size and the pixels mapping between the LED
+/// strip placement and the matrix's x y coordinates.
 pub struct SmartLedMatrix<T, M: MatrixType, const W: usize, const H: usize> {
     writer: T,
     content: Content<W, H>,
@@ -73,14 +85,25 @@ where <T as SmartLedsWrite>::Color: From<RGB8> {
     }
 }
 
+/// Trait that represents a certain type of LED matrix.
+///
+/// The map() function shall fix any x y coordinate mismatch. Mismatch means
+/// the matrix might display the result being drawn in mirrored or otherwise
+/// incorrect ways due to the LEDs order on the PCB.
+/// The size() function returns the x and y size of the matrix to satisfy
+/// embedded-graphics user libraries.
 pub trait MatrixType {
     fn map(&self, pos: Point) -> Result<Point, DisplayError>;
     fn size(&self) -> Size;
 }
 
+/// Type definition for simple 8x8 matrix.
 pub struct MT8x8 {
 }
 
+/// Factory function that wraps the LED driver and produces the appropriate SmartLedsMatrix.
+///
+/// User should use this function to work with the crate.
 pub fn new_8x8<T: SmartLedsWrite>(writer: T) -> SmartLedMatrix<T, MT8x8, 8, 8> {
     SmartLedMatrix::<_, _, 8, 8>::new(writer, MT8x8{})
 }
