@@ -37,7 +37,7 @@ impl<T: SmartLedsWrite, M: MatrixType, const W: usize, const H: usize> OriginDim
 }
 
 impl<T: SmartLedsWrite, M: MatrixType, const W: usize, const H: usize> SmartLedMatrix<T, M, W, H> {
-    fn new(writer: T, matrix_type: M) -> Self {
+    pub fn new(writer: T, matrix_type: M) -> Self {
         let content = Content::<W, H>([[RGB8::default(); W]; H]);
         Self{writer: writer,
             content: content,
