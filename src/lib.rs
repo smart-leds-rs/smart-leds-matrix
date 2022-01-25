@@ -66,17 +66,17 @@ where <T as SmartLedsWrite>::Color: From<RGB8> {
     fn draw_iter<I>(&mut self, pixels: I) -> Result<(), Self::Error>
     where
     I: IntoIterator<Item = Pixel<Rgb888>> {
-        let mut out_of_bounds_checker: Result<(), DisplayError> = Ok(());
         pixels.into_iter().for_each(|Pixel(pos, color)| {
             match self.matrix_type.map(pos) {
                 Ok(mapped_pos) => self.content.0[mapped_pos.x as usize][mapped_pos.y as usize] = RGB8::new(color.r(), color.g(), color.b()),
-                Err(e) => out_of_bounds_checker = Err(e),
+                // OutOfBounds error is not reported
+                Err(_) => {},
             }
         });
         let iter = brightness(self.content.as_slice().iter().cloned(), self.brightness);
         match self.writer.write(iter) {
             Ok(()) => {
-                out_of_bounds_checker
+                Ok(())
             }
             Err(_) => {
                 Err(DisplayError::BusWriteError)
