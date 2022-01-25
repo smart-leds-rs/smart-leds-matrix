@@ -48,13 +48,25 @@ impl<T: SmartLedsWrite, M: MatrixType, const W: usize, const H: usize> OriginDim
     }
 }
 
-impl<T: SmartLedsWrite, M: MatrixType, const W: usize, const H: usize> SmartLedMatrix<T, M, W, H> {
+impl<T: SmartLedsWrite, M: MatrixType, const W: usize, const H: usize> SmartLedMatrix<T, M, W, H> 
+where <T as SmartLedsWrite>::Color: From<RGB8> {
     pub fn new(writer: T, matrix_type: M) -> Self {
         let content = Content::<W, H>([[RGB8::default(); W]; H]);
         Self{writer: writer,
             content: content,
             matrix_type: matrix_type,
             brightness: 255}
+    }
+    pub fn flush(&mut self) -> Result<(), DisplayError> {
+        let iter = brightness(self.content.as_slice().iter().cloned(), self.brightness);
+        match self.writer.write(iter) {
+            Ok(()) => {
+                Ok(())
+            }
+            Err(_) => {
+                Err(DisplayError::BusWriteError)
+            }
+        }        
     }
 }
 
@@ -73,15 +85,7 @@ where <T as SmartLedsWrite>::Color: From<RGB8> {
                 Err(_) => {},
             }
         });
-        let iter = brightness(self.content.as_slice().iter().cloned(), self.brightness);
-        match self.writer.write(iter) {
-            Ok(()) => {
-                Ok(())
-            }
-            Err(_) => {
-                Err(DisplayError::BusWriteError)
-            }
-        }
+        Ok(())
     }
 }
 
@@ -104,7 +108,8 @@ pub struct MT8x8 {
 /// Factory function that wraps the LED driver and produces the appropriate SmartLedsMatrix.
 ///
 /// User should use this function to work with the crate.
-pub fn new_8x8<T: SmartLedsWrite>(writer: T) -> SmartLedMatrix<T, MT8x8, 8, 8> {
+pub fn new_8x8<T: SmartLedsWrite>(writer: T) -> SmartLedMatrix<T, MT8x8, 8, 8>
+where <T as SmartLedsWrite>::Color: From<RGB8> {
     SmartLedMatrix::<_, _, 8, 8>::new(writer, MT8x8{})
 }
 
