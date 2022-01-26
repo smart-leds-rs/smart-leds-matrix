@@ -42,12 +42,18 @@ fn main() -> ! {
     matrix.set_brightness(15);
     matrix.clear(Rgb888::new(0, 0, 0));
 
+    // Drawable objects are calling draw_iter() function of the matrix.
+    // That is only the internal frame buffer is updated, no real 
+    // communication happens yet. That is useful when a frame is composed
+    // of multiple objects, text, etc.
     Rectangle::new(Point::new(1, 1), Size::new(6, 6))
     .into_styled(
         PrimitiveStyleBuilder::new()
         .fill_color(Rgb888::RED)
         .build(),
-    ).draw(&mut matrix);    
+    ).draw(&mut matrix)?;
+    // Trigger the actual frame update on the matrix with flush().
+    matrix.flush();
     loop{}
 }
 ```
