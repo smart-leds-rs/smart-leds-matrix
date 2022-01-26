@@ -77,10 +77,9 @@ where
     }
     pub fn flush(&mut self) -> Result<(), DisplayError> {
         let iter = brightness(self.content.as_slice().iter().cloned(), self.brightness);
-        match self.writer.write(iter) {
-            Ok(()) => Ok(()),
-            Err(_) => Err(DisplayError::BusWriteError),
-        }
+        self.writer
+            .write(iter)
+            .map_err(|_| DisplayError::BusWriteError)
     }
 }
 
