@@ -38,7 +38,7 @@ use embedded_graphics::{
 fn main() -> ! {
 [...]
     let ws = ws2812::Ws2812::new(spi);
-    let mut matrix = new_8x8(ws);
+    let mut matrix = new_8x8_y_inverted(ws);
     matrix.set_brightness(15);
     matrix.clear(Rgb888::new(0, 0, 0));
 
