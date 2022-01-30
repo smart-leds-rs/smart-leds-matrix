@@ -40,20 +40,20 @@ impl<const W: usize, const H: usize> Content<W, H> {
 /// This receives the `SmartLedsWriter` trait implementations along with a
 /// `MatrixType` that describes the size and the pixels mapping between the LED
 /// strip placement and the matrix's x y coordinates.
-pub struct SmartLedMatrix<T, M: MatrixType<W, H>, const W: usize, const H: usize> {
+pub struct SmartLedMatrix<T, M: Transformation<W, H>, const W: usize, const H: usize> {
     writer: T,
     content: Content<W, H>,
     matrix_type: PhantomData<M>,
     brightness: u8,
 }
 
-impl<T, M: MatrixType<W, H>, const W: usize, const H: usize> SmartLedMatrix<T, M, W, H> {
+impl<T, M: Transformation<W, H>, const W: usize, const H: usize> SmartLedMatrix<T, M, W, H> {
     pub fn set_brightness(&mut self, new_brightness: u8) {
         self.brightness = new_brightness;
     }
 }
 
-impl<T: SmartLedsWrite, M: MatrixType<W, H>, const W: usize, const H: usize> OriginDimensions
+impl<T: SmartLedsWrite, M: Transformation<W, H>, const W: usize, const H: usize> OriginDimensions
     for SmartLedMatrix<T, M, W, H>
 {
     fn size(&self) -> Size {
@@ -61,7 +61,7 @@ impl<T: SmartLedsWrite, M: MatrixType<W, H>, const W: usize, const H: usize> Ori
     }
 }
 
-impl<T: SmartLedsWrite, M: MatrixType<W, H>, const W: usize, const H: usize>
+impl<T: SmartLedsWrite, M: Transformation<W, H>, const W: usize, const H: usize>
     SmartLedMatrix<T, M, W, H>
 where
     <T as SmartLedsWrite>::Color: From<RGB8>,
@@ -83,7 +83,7 @@ where
     }
 }
 
-impl<T: SmartLedsWrite, M: MatrixType<W, H>, const W: usize, const H: usize> DrawTarget
+impl<T: SmartLedsWrite, M: Transformation<W, H>, const W: usize, const H: usize> DrawTarget
     for SmartLedMatrix<T, M, W, H>
 where
     <T as SmartLedsWrite>::Color: From<RGB8>,
@@ -111,26 +111,40 @@ where
 /// The map() function shall fix any x y coordinate mismatch. Mismatch means
 /// the matrix might display the result being drawn in mirrored or otherwise
 /// incorrect ways due to the LEDs order on the PCB.
-/// The size() function returns the x and y size of the matrix to satisfy
-/// embedded-graphics user libraries.
-pub trait MatrixType<const W: usize, const H: usize> {
+/// Grid type matrixes (like 2x2  of 1x4 grid of 8x8 matrixes) should be also
+/// handled using this trait.
+pub trait Transformation<const W: usize, const H: usize> {
     fn map(pos: Point) -> Option<Point>;
 }
 
-/// Type definition for simple 8x8 matrix.
+/// Transformation to fix Y inversion on certain matrixes.
 pub enum InvertY {}
 
-/// Factory function that wraps the LED driver and produces the appropriate SmartLedsMatrix.
+/// No-op transformation.
+pub enum None {}
+
+
+/// Factory function for 8x8 matrix which produces inverted Y coordinated by default.
 ///
 /// User should use this function to work with the crate.
-pub fn new_8x8<T: SmartLedsWrite>(writer: T) -> SmartLedMatrix<T, InvertY, 8, 8>
+pub fn new_8x8_y_inverted<T: SmartLedsWrite>(writer: T) -> SmartLedMatrix<T, InvertY, 8, 8>
 where
     <T as SmartLedsWrite>::Color: From<RGB8>,
 {
     SmartLedMatrix::new(writer)
 }
 
-impl<const W: usize, const H: usize> MatrixType<W, H> for InvertY {
+/// Factory function for 8x8 matrix.
+///
+/// User should use this function to work with the crate.
+pub fn new_8x8<T: SmartLedsWrite>(writer: T) -> SmartLedMatrix<T, None, 8, 8>
+where
+    <T as SmartLedsWrite>::Color: From<RGB8>,
+{
+    SmartLedMatrix::new(writer)
+}
+
+impl<const W: usize, const H: usize> Transformation<W, H> for InvertY {
     fn map(pos: Point) -> Option<Point> {
         let width = W as i32;
         let height = H as i32;
@@ -140,29 +154,89 @@ impl<const W: usize, const H: usize> MatrixType<W, H> for InvertY {
     }
 }
 
+impl<const W: usize, const H: usize> Transformation<W, H> for None {
+    fn map(pos: Point) -> Option<Point> {
+        let width = W as i32;
+        let height = H as i32;
+
+        (pos.x >= 0 && pos.x < width && pos.y >= 0 && pos.y < height)
+            .then(|| Point::new(pos.x, pos.y))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    struct MockWriter {}
+    struct MockWriter<'a> {
+        content: &'a mut [RGB8; 64]
+    }
 
-    impl SmartLedsWrite for MockWriter {
+    impl<'a> SmartLedsWrite for MockWriter<'a> {
         type Error = ();
         type Color = RGB8;
 
-        fn write<T, I>(&mut self, _iterator: T) -> Result<(), Self::Error>
+        fn write<T, I>(&mut self, iterator: T) -> Result<(), Self::Error>
         where
             T: Iterator<Item = I>,
             I: Into<Self::Color>,
         {
-            todo!()
+            let mut i = 0;
+            for color in iterator {
+                self.content[i] = color.into();
+                i +=1;
+            }
+            Ok(())
         }
     }
 
     #[test]
-    fn test() {
-        let writer = MockWriter {};
+    fn test_y_inversion() {
+        let content = &mut [RGB8::new(0, 0, 0); 64];
+        let writer = MockWriter {content};
+        let mut matrix = SmartLedMatrix::<_, InvertY, 8, 8>::new(writer);
+        let mut pixels: [Pixel<Rgb888>; 64] = [Pixel(Point::new(0, 0), Rgb888::BLACK); 64];
+        for x in 0..8 {
+            for y in 0..8 {
+                pixels[x*8+y] = Pixel(Point::new(x as i32, y as i32), Rgb888::BLACK);
+            }
+        }
+        pixels[0] = Pixel(Point::new(0, 0), Rgb888::WHITE);
+        
+        matrix.draw_iter(pixels).unwrap();
+        matrix.flush().unwrap();
 
-        let _matrix = SmartLedMatrix::<_, InvertY, 8, 8>::new(writer);
+        for i in 0..64 {
+            if i == 7 {
+                assert_eq!(content[i], RGB8::new(255, 255, 255), r#"expected a white pixel after inversion"#);
+                continue;
+            }
+            assert_eq!(content[i], RGB8::new(0, 0, 0), r#"expected black pixel"#);
+        }
+    }
+
+    #[test]
+    fn test_none() {
+        let content = &mut [RGB8::new(0, 0, 0); 64];
+        let writer = MockWriter {content};
+        let mut matrix = SmartLedMatrix::<_, None, 8, 8>::new(writer);
+        let mut pixels: [Pixel<Rgb888>; 64] = [Pixel(Point::new(0, 0), Rgb888::BLACK); 64];
+        for x in 0..8 {
+            for y in 0..8 {
+                pixels[x*8+y] = Pixel(Point::new(x as i32, y as i32), Rgb888::BLACK);
+            }
+        }
+        pixels[0] = Pixel(Point::new(0, 0), Rgb888::WHITE);
+        
+        matrix.draw_iter(pixels).unwrap();
+        matrix.flush().unwrap();
+
+        for i in 0..64 {
+            if i == 0 {
+                assert_eq!(content[i], RGB8::new(255, 255, 255), r#"expected a white pixel on it's original place"#);
+                continue;
+            }
+            assert_eq!(content[i], RGB8::new(0, 0, 0), r#"expected black pixel"#);
+        }
     }
 }
