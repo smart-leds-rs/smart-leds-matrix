@@ -9,7 +9,6 @@
 
 use core::marker::PhantomData;
 
-use display_interface::DisplayError;
 use embedded_graphics_core::{
     draw_target::DrawTarget,
     geometry::{OriginDimensions, Point, Size},
@@ -38,18 +37,21 @@ impl<const W: usize, const H: usize> Content<W, H> {
 /// The wrapper for the LED driver.
 ///
 /// This receives the `SmartLedsWriter` trait implementations along with a
-/// `MatrixType` that describes the size and the pixels mapping between the LED
+/// `Transformation` that describes the pixels mapping between the LED
 /// strip placement and the matrix's x y coordinates.
 pub struct SmartLedMatrix<T, M: Transformation<W, H>, const W: usize, const H: usize> {
     writer: T,
     content: Content<W, H>,
-    matrix_type: PhantomData<M>,
+    transformation: PhantomData<M>,
     brightness: u8,
 }
 
 impl<T, M: Transformation<W, H>, const W: usize, const H: usize> SmartLedMatrix<T, M, W, H> {
     pub fn set_brightness(&mut self, new_brightness: u8) {
         self.brightness = new_brightness;
+    }
+    pub fn get_brightness(&mut self) -> u8 {
+        self.brightness
     }
 }
 
@@ -61,6 +63,9 @@ impl<T: SmartLedsWrite, M: Transformation<W, H>, const W: usize, const H: usize>
     }
 }
 
+#[derive(Debug)]
+pub enum MatrixError {BusWriteError}
+
 impl<T: SmartLedsWrite, M: Transformation<W, H>, const W: usize, const H: usize>
     SmartLedMatrix<T, M, W, H>
 where
@@ -71,15 +76,15 @@ where
         Self {
             writer,
             content,
-            matrix_type: PhantomData,
+            transformation: PhantomData,
             brightness: 255,
         }
     }
-    pub fn flush(&mut self) -> Result<(), DisplayError> {
+    pub fn flush(&mut self) -> Result<(), MatrixError> {
         let iter = brightness(self.content.as_slice().iter().cloned(), self.brightness);
         self.writer
             .write(iter)
-            .map_err(|_| DisplayError::BusWriteError)
+            .map_err(|_| MatrixError::BusWriteError)
     }
 }
 
@@ -89,7 +94,7 @@ where
     <T as SmartLedsWrite>::Color: From<RGB8>,
 {
     type Color = Rgb888;
-    type Error = DisplayError;
+    type Error = core::convert::Infallible;
 
     fn draw_iter<I>(&mut self, pixels: I) -> Result<(), Self::Error>
     where
@@ -121,7 +126,7 @@ pub trait Transformation<const W: usize, const H: usize> {
 pub enum InvertY {}
 
 /// No-op transformation.
-pub enum None {}
+pub enum Identity {}
 
 
 /// Factory function for 8x8 matrix which produces inverted Y coordinated by default.
@@ -137,7 +142,7 @@ where
 /// Factory function for 8x8 matrix.
 ///
 /// User should use this function to work with the crate.
-pub fn new_8x8<T: SmartLedsWrite>(writer: T) -> SmartLedMatrix<T, None, 8, 8>
+pub fn new_8x8<T: SmartLedsWrite>(writer: T) -> SmartLedMatrix<T, Identity, 8, 8>
 where
     <T as SmartLedsWrite>::Color: From<RGB8>,
 {
@@ -154,7 +159,7 @@ impl<const W: usize, const H: usize> Transformation<W, H> for InvertY {
     }
 }
 
-impl<const W: usize, const H: usize> Transformation<W, H> for None {
+impl<const W: usize, const H: usize> Transformation<W, H> for Identity {
     fn map(pos: Point) -> Option<Point> {
         let width = W as i32;
         let height = H as i32;
@@ -190,17 +195,23 @@ mod tests {
         }
     }
 
+    fn get64pixels(color: Rgb888) -> ([Pixel<Rgb888>; 64]) {
+        let mut pixels: [Pixel<Rgb888>; 64] = [Pixel(Point::new(0, 0), Rgb888::BLACK); 64];
+        for x in 0..8 {
+            for y in 0..8 {
+                pixels[x*8+y] = Pixel(Point::new(x as i32, y as i32), color);
+            }
+        }
+        pixels
+    }
+
     #[test]
     fn test_y_inversion() {
         let content = &mut [RGB8::new(0, 0, 0); 64];
         let writer = MockWriter {content};
         let mut matrix = SmartLedMatrix::<_, InvertY, 8, 8>::new(writer);
-        let mut pixels: [Pixel<Rgb888>; 64] = [Pixel(Point::new(0, 0), Rgb888::BLACK); 64];
-        for x in 0..8 {
-            for y in 0..8 {
-                pixels[x*8+y] = Pixel(Point::new(x as i32, y as i32), Rgb888::BLACK);
-            }
-        }
+        let mut pixels = get64pixels(Rgb888::BLACK);
+
         pixels[0] = Pixel(Point::new(0, 0), Rgb888::WHITE);
         
         matrix.draw_iter(pixels).unwrap();
@@ -216,16 +227,12 @@ mod tests {
     }
 
     #[test]
-    fn test_none() {
+    fn test_identity() {
         let content = &mut [RGB8::new(0, 0, 0); 64];
         let writer = MockWriter {content};
-        let mut matrix = SmartLedMatrix::<_, None, 8, 8>::new(writer);
-        let mut pixels: [Pixel<Rgb888>; 64] = [Pixel(Point::new(0, 0), Rgb888::BLACK); 64];
-        for x in 0..8 {
-            for y in 0..8 {
-                pixels[x*8+y] = Pixel(Point::new(x as i32, y as i32), Rgb888::BLACK);
-            }
-        }
+        let mut matrix = SmartLedMatrix::<_, Identity, 8, 8>::new(writer);
+        let mut pixels = get64pixels(Rgb888::BLACK);
+
         pixels[0] = Pixel(Point::new(0, 0), Rgb888::WHITE);
         
         matrix.draw_iter(pixels).unwrap();
@@ -237,6 +244,25 @@ mod tests {
                 continue;
             }
             assert_eq!(content[i], RGB8::new(0, 0, 0), r#"expected black pixel"#);
+        }
+    }
+
+    #[test]
+    fn test_brightness() {
+        let content = &mut [RGB8::new(0, 0, 0); 64];
+        let writer = MockWriter {content};
+        let mut matrix = SmartLedMatrix::<_, Identity, 8, 8>::new(writer);
+        let pixels = get64pixels(Rgb888::WHITE);
+
+        assert_eq!(matrix.get_brightness(), 255, r#"initial brightness shall be set to max (255)"#);
+        matrix.set_brightness(10);
+        assert_eq!(matrix.get_brightness(), 10, r#"brightness shall be set to 10"#);
+        
+        matrix.draw_iter(pixels).unwrap();
+        matrix.flush().unwrap();
+
+        for i in 0..64 {
+            assert_eq!(content[i], RGB8::new(10, 10, 10), r#"expected black pixel"#);
         }
     }
 }
