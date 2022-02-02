@@ -50,7 +50,7 @@ impl<T, M: Transformation<W, H>, const W: usize, const H: usize> SmartLedMatrix<
     pub fn set_brightness(&mut self, new_brightness: u8) {
         self.brightness = new_brightness;
     }
-    pub fn get_brightness(&mut self) -> u8 {
+    pub fn brightness(&mut self) -> u8 {
         self.brightness
     }
 }
@@ -62,9 +62,6 @@ impl<T: SmartLedsWrite, M: Transformation<W, H>, const W: usize, const H: usize>
         Size::new(W as u32, H as u32)
     }
 }
-
-#[derive(Debug)]
-pub enum MatrixError {BusWriteError}
 
 impl<T: SmartLedsWrite, M: Transformation<W, H>, const W: usize, const H: usize>
     SmartLedMatrix<T, M, W, H>
@@ -80,11 +77,9 @@ where
             brightness: 255,
         }
     }
-    pub fn flush(&mut self) -> Result<(), MatrixError> {
+    pub fn flush(&mut self) -> Result<(), T::Error> {
         let iter = brightness(self.content.as_slice().iter().cloned(), self.brightness);
-        self.writer
-            .write(iter)
-            .map_err(|_| MatrixError::BusWriteError)
+        self.writer.write(iter)
     }
 }
 
@@ -127,7 +122,6 @@ pub enum InvertY {}
 
 /// No-op transformation.
 pub enum Identity {}
-
 
 /// Factory function for 8x8 matrix which produces inverted Y coordinated by default.
 ///
@@ -174,7 +168,7 @@ mod tests {
     use super::*;
 
     struct MockWriter<'a> {
-        content: &'a mut [RGB8; 64]
+        content: &'a mut [RGB8; 64],
     }
 
     impl<'a> SmartLedsWrite for MockWriter<'a> {
@@ -189,7 +183,7 @@ mod tests {
             let mut i = 0;
             for color in iterator {
                 self.content[i] = color.into();
-                i +=1;
+                i += 1;
             }
             Ok(())
         }
@@ -199,7 +193,7 @@ mod tests {
         let mut pixels: [Pixel<Rgb888>; 64] = [Pixel(Point::new(0, 0), Rgb888::BLACK); 64];
         for x in 0..8 {
             for y in 0..8 {
-                pixels[x*8+y] = Pixel(Point::new(x as i32, y as i32), color);
+                pixels[x * 8 + y] = Pixel(Point::new(x as i32, y as i32), color);
             }
         }
         pixels
@@ -208,18 +202,22 @@ mod tests {
     #[test]
     fn test_y_inversion() {
         let content = &mut [RGB8::new(0, 0, 0); 64];
-        let writer = MockWriter {content};
+        let writer = MockWriter { content };
         let mut matrix = SmartLedMatrix::<_, InvertY, 8, 8>::new(writer);
         let mut pixels = get64pixels(Rgb888::BLACK);
 
         pixels[0] = Pixel(Point::new(0, 0), Rgb888::WHITE);
-        
+
         matrix.draw_iter(pixels).unwrap();
         matrix.flush().unwrap();
 
         for i in 0..64 {
             if i == 7 {
-                assert_eq!(content[i], RGB8::new(255, 255, 255), r#"expected a white pixel after inversion"#);
+                assert_eq!(
+                    content[i],
+                    RGB8::new(255, 255, 255),
+                    r#"expected a white pixel after inversion"#
+                );
                 continue;
             }
             assert_eq!(content[i], RGB8::new(0, 0, 0), r#"expected black pixel"#);
@@ -229,18 +227,22 @@ mod tests {
     #[test]
     fn test_identity() {
         let content = &mut [RGB8::new(0, 0, 0); 64];
-        let writer = MockWriter {content};
+        let writer = MockWriter { content };
         let mut matrix = SmartLedMatrix::<_, Identity, 8, 8>::new(writer);
         let mut pixels = get64pixels(Rgb888::BLACK);
 
         pixels[0] = Pixel(Point::new(0, 0), Rgb888::WHITE);
-        
+
         matrix.draw_iter(pixels).unwrap();
         matrix.flush().unwrap();
 
         for i in 0..64 {
             if i == 0 {
-                assert_eq!(content[i], RGB8::new(255, 255, 255), r#"expected a white pixel on it's original place"#);
+                assert_eq!(
+                    content[i],
+                    RGB8::new(255, 255, 255),
+                    r#"expected a white pixel on it's original place"#
+                );
                 continue;
             }
             assert_eq!(content[i], RGB8::new(0, 0, 0), r#"expected black pixel"#);
@@ -250,14 +252,18 @@ mod tests {
     #[test]
     fn test_brightness() {
         let content = &mut [RGB8::new(0, 0, 0); 64];
-        let writer = MockWriter {content};
+        let writer = MockWriter { content };
         let mut matrix = SmartLedMatrix::<_, Identity, 8, 8>::new(writer);
         let pixels = get64pixels(Rgb888::WHITE);
 
-        assert_eq!(matrix.get_brightness(), 255, r#"initial brightness shall be set to max (255)"#);
+        assert_eq!(
+            matrix.brightness(),
+            255,
+            r#"initial brightness shall be set to max (255)"#
+        );
         matrix.set_brightness(10);
-        assert_eq!(matrix.get_brightness(), 10, r#"brightness shall be set to 10"#);
-        
+        assert_eq!(matrix.brightness(), 10, r#"brightness shall be set to 10"#);
+
         matrix.draw_iter(pixels).unwrap();
         matrix.flush().unwrap();
 
