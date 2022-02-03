@@ -50,7 +50,7 @@ impl<T, M: Transformation<W, H>, const W: usize, const H: usize> SmartLedMatrix<
     pub fn set_brightness(&mut self, new_brightness: u8) {
         self.brightness = new_brightness;
     }
-    pub fn brightness(&mut self) -> u8 {
+    pub fn brightness(&self) -> u8 {
         self.brightness
     }
 }
