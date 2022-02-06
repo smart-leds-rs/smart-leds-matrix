@@ -1,5 +1,3 @@
-# This is a very WorkInProgress project.
-
 # Smart LEDs matrix
 ![](pacman.gif)
 
@@ -14,7 +12,7 @@ There are interesting issues though, with my setup (stm32f401 + 8x8 ws2812 matri
 * write operation usually gets back with an overrun error, while the display is still updated for ~every second time
 
 # Plan
-* Add more display types (like 2x2 or 1x4 grids of 8x8 matrixes), though user can add those anytime by implementing another `MatrixType`.
+* Add more display types (like 2x2 or 1x4 grids of 8x8 matrixes), though user can add those anytime by implementing another `Transformation`.
 
 # Usage
 You may start by creating creating a driver for your LED and controller. Some examples can be found [here](https://github.com/smart-leds-rs/smart-leds-samples).
@@ -43,7 +41,7 @@ fn main() -> ! {
     matrix.clear(Rgb888::new(0, 0, 0));
 
     // Drawable objects are calling draw_iter() function of the matrix.
-    // That is only the internal frame buffer is updated, no real 
+    // That is, only the internal frame buffer is updated, no real 
     // communication happens yet. That is useful when a frame is composed
     // of multiple objects, text, etc.
     Rectangle::new(Point::new(1, 1), Size::new(6, 6))
