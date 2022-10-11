@@ -212,7 +212,7 @@ mod tests {
         matrix.flush().unwrap();
 
         for i in 0..64 {
-            if i == 7 {
+            if i == 56 {
                 assert_eq!(
                     content[i],
                     RGB8::new(255, 255, 255),
