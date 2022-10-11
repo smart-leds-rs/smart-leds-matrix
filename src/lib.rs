@@ -97,7 +97,7 @@ where
     {
         for Pixel(pos, color) in pixels {
             if let Some(mapped_pos) = M::map(pos) {
-                self.content.0[mapped_pos.x as usize][mapped_pos.y as usize] =
+                self.content.0[mapped_pos.y as usize][mapped_pos.x as usize] =
                     RGB8::new(color.r(), color.g(), color.b());
             }
         }
