@@ -28,6 +28,6 @@ exclude = [
 [dependencies]
 display-interface = "0.4.1"
 embedded-graphics-core = "0.3.3"
-embedded-hal = "0.2.6"
+embedded-hal = "0.2.7"
 smart-leds = "0.3.0"
 smart-leds-trait = "0.2.1"
