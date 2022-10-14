@@ -14,7 +14,7 @@ use embedded_graphics_core::{
     Pixel,
 };
 
-use smart_leds::{brightness, hsv::RGB8, SmartLedsWrite};
+use smart_leds::{brightness, gamma, hsv::RGB8, SmartLedsWrite};
 
 pub mod layout;
 use layout::Layout;
@@ -56,6 +56,12 @@ where
 
     pub fn flush(&mut self) -> Result<(), T::Error> {
         let iter = brightness(self.content.as_slice().iter().cloned(), self.brightness);
+        self.writer.write(iter)
+    }
+    pub fn flush_with_gamma(&mut self) -> Result<(), T::Error> {
+        let iter = brightness(gamma(
+            self.content.as_slice().iter().cloned()
+        ), self.brightness);
         self.writer.write(iter)
     }
 }
