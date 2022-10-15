@@ -23,7 +23,7 @@ Example:
 ```rust
 use ws2812_spi as ws2812;
 
-use smart_leds_matrix::*;
+use smart_leds_matrix::{SmartLedMatrix, layout::Rectangular};
 
 use embedded_graphics::{
     pixelcolor::*,
@@ -36,7 +36,7 @@ use embedded_graphics::{
 fn main() -> ! {
 [...]
     let ws = ws2812::Ws2812::new(spi);
-    let mut matrix = new_8x8_y_inverted(ws);
+    let mut matrix = SmartLedMatrix::<_, _, {8 * 8}>::new(ws, Rectangular::new_inverted_y(8, 8));
     matrix.set_brightness(15);
     matrix.clear(Rgb888::new(0, 0, 0));
 
