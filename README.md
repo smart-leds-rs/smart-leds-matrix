@@ -4,18 +4,15 @@
 A `DrawTarget` implementation to use (one, or more) smart LED matrixes as a graphics display driven by [embedded-graphics](https://docs.rs/embedded-graphics/latest/embedded_graphics/) `Drawable` objects.
 The integrated driver is from [smart-leds](https://docs.rs/smart-leds/latest/smart_leds/) crate.
 
-# Status
-It works on some level. Rectangles are fine.
-
-There are interesting issues though, with my setup (stm32f401 + 8x8 ws2812 matrix):
-* circles are not exacly drawn always to the same position
-* write operation usually gets back with an overrun error, while the display is still updated for ~every second time
+# Known issues (with my setup: stm32f401 + 8x8 ws2812 matrix):
+* circles with the same parameters are not exactly drawn always to the same position, not sure if this is the same with bigger resolution displays or not
+* write operation usually gets back with an overrun error, while the display is still updated for ~every second time (workaround: flush always twice)
 
 # Plan
-* Add more display types (like 2x2 or 1x4 grids of 8x8 matrixes), though user can add those anytime by implementing another `Transformation`.
+* Add more display types (like 2x2 or 1x4 grids of 8x8 matrixes), though user can add those anytime by implementing another `layout`.
 
 # Usage
-You may start by creating creating a driver for your LED and controller. Some examples can be found [here](https://github.com/smart-leds-rs/smart-leds-samples).
+You may start by creating a driver for your LED and controller. Some examples can be found [here](https://github.com/smart-leds-rs/smart-leds-samples).
 
 Once you have it, you can plug it into the `DrawTarget` implemented by this crate.
 
@@ -50,8 +47,8 @@ fn main() -> ! {
         .fill_color(Rgb888::RED)
         .build(),
     ).draw(&mut matrix)?;
-    // Trigger the actual frame update on the matrix with flush().
-    matrix.flush();
+    // Trigger the actual frame update on the matrix with gamma correction.
+    matrix.flush_with_gamma();
     loop{}
 }
 ```
