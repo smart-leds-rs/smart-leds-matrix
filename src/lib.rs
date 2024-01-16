@@ -14,7 +14,7 @@ use embedded_graphics_core::{
     Pixel,
 };
 
-use smart_leds::{brightness, gamma, RGB8, SmartLedsWrite};
+use smart_leds::{brightness, gamma, SmartLedsWrite, RGB8};
 
 pub mod layout;
 use layout::Layout;
@@ -59,9 +59,10 @@ where
         self.writer.write(iter)
     }
     pub fn flush_with_gamma(&mut self) -> Result<(), T::Error> {
-        let iter = brightness(gamma(
-            self.content.as_slice().iter().cloned()
-        ), self.brightness);
+        let iter = brightness(
+            gamma(self.content.as_slice().iter().cloned()),
+            self.brightness,
+        );
         self.writer.write(iter)
     }
 }
@@ -114,7 +115,7 @@ mod tests {
 
         fn write<T, I>(&mut self, iterator: T) -> Result<(), Self::Error>
         where
-            T: Iterator<Item = I>,
+            T: IntoIterator<Item = I>,
             I: Into<Self::Color>,
         {
             let mut i = 0;
@@ -126,7 +127,7 @@ mod tests {
         }
     }
 
-    fn get64pixels(color: Rgb888) -> ([Pixel<Rgb888>; 64]) {
+    fn get64pixels(color: Rgb888) -> [Pixel<Rgb888>; 64] {
         let mut pixels: [Pixel<Rgb888>; 64] = [Pixel(Point::new(0, 0), Rgb888::BLACK); 64];
         for x in 0..8 {
             for y in 0..8 {
