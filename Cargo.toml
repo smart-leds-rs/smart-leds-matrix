@@ -26,8 +26,8 @@ exclude = [
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-display-interface = "0.4.1"
+display-interface = "0.5.0"
 embedded-graphics-core = "0.4.0"
-embedded-hal = "0.2.7"
-smart-leds = "0.3.0"
-smart-leds-trait = "0.2.1"
+embedded-hal = "1.0.0"
+smart-leds = "0.4.0"
+smart-leds-trait = "0.3.0"
