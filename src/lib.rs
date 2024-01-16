@@ -14,7 +14,7 @@ use embedded_graphics_core::{
     Pixel,
 };
 
-use smart_leds::{brightness, gamma, hsv::RGB8, SmartLedsWrite};
+use smart_leds::{brightness, gamma, RGB8, SmartLedsWrite};
 
 pub mod layout;
 use layout::Layout;
